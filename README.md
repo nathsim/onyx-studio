@@ -86,6 +86,9 @@ Tout est stocké dans `localStorage` (`onyx_config_v1`) et s'applique à tous le
 - **Mode clair 🌞 / sombre 🌙** : bascule dans le profil (et sur l'écran de connexion), mémorisée par compte
 - **Offrir un crédit à un ami 🎁** : envoie des crédits à un autre membre par son code (il reçoit une notif)
 - **Exporter mes données 📦** : télécharge tout ton compte en `.json`
+- **Page « Le studio » 📍** : horaires d'ouverture (éditables par le gérant), adresse + itinéraire, appeler/email, équipements & services, FAQ, statut ouvert/fermé en temps réel
+- **Niveaux de difficulté** : chaque cours est 🟢 Doux / 🟡 Modéré / 🔴 Intense — badges partout + filtre dans le planning + éditable par le gérant
+- **Ajouter une séance à mon agenda 📅** : bouton `.ics` (avec rappel 2h avant) sur chaque cours réservé
 - **Boutique** : packs de crédits, abonnements mensuels (facturation simulée, résiliation),
   cartes-cadeaux (codes générés), shop produits, panier, paiement **fictif**
 - **Inventaire** : mes cartes (barres de progression), mes abonnements, mes factures téléchargeables
