@@ -216,7 +216,7 @@ function makeAccount(name, email, pass, data, extra = {}) {
     phone: extra.phone || '', address: extra.address || '', emergency: '',
     memberId: 'OX-' + (1000 + hash(e) % 9000),
     since: extra.since || new Date().toISOString(),
-    theme: 'gold', weeklyGoal: 3,
+    theme: 'gold', mode: 'dark', weeklyGoal: 3,
     role: extra.role || 'member',
     data,
   };
@@ -271,8 +271,8 @@ function hydrate(acc) {
     user: {
       name: acc.name, email: acc.email, phone: acc.phone, address: acc.address,
       emergency: acc.emergency, memberId: acc.memberId, since: acc.since,
-      theme: acc.theme || 'gold', weeklyGoal: acc.weeklyGoal || 3,
-      role: acc.role || 'member',
+      theme: acc.theme || 'gold', mode: acc.mode || 'dark', weeklyGoal: acc.weeklyGoal || 3,
+      role: acc.role || 'member', sysNotifs: acc.sysNotifs || false,
     },
   }, d);
 }
@@ -287,11 +287,13 @@ function save() {
     const a = ACCOUNTS[e];
     if (a) {
       a.name = state.user.name; a.phone = state.user.phone; a.address = state.user.address;
-      a.emergency = state.user.emergency; a.theme = state.user.theme; a.weeklyGoal = state.user.weeklyGoal;
+      a.emergency = state.user.emergency; a.theme = state.user.theme; a.mode = state.user.mode;
+      a.weeklyGoal = state.user.weeklyGoal; a.sysNotifs = state.user.sysNotifs;
       a.data = {
         favorites: state.favorites, cart: state.cart, cards: state.cards, subs: state.subs,
         invoices: state.invoices, reservations: state.reservations, waitlist: state.waitlist,
-        ratings: state.ratings, invTab: state.invTab, resaTab: state.resaTab,
+        waitPromos: state.waitPromos, ratings: state.ratings, notifs: state.notifs,
+        challenges: state.challenges, invTab: state.invTab, resaTab: state.resaTab,
       };
     }
   }
@@ -669,8 +671,16 @@ function confetti() {
 const nav = h => { location.hash = h; };
 function route() { return (location.hash || '#/home').slice(2).split('/'); }
 
+function currentMode() {
+  if (state && state.user && state.user.mode) return state.user.mode;
+  return localStorage.getItem('onyx_mode') || 'dark';
+}
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', (state.user && state.user.theme) || 'gold');
+  const mode = currentMode();
+  document.documentElement.setAttribute('data-mode', mode);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', mode === 'light' ? '#F4F1EA' : '#0D0D10');
 }
 
 function render() {
@@ -1512,6 +1522,11 @@ function vProfil() {
         : 'Désactivés — touche pour activer'}</span></span>
       <span class="lr-chev">${I('chevR', 18)}</span>
     </button>
+    <button class="listrow" onclick="act.giftFriendSheet()">
+      <span class="lr-ico">${I('gift', 22)}</span>
+      <span class="lr-txt"><span class="lr-name">🎁 Offrir un crédit à un ami</span><br><span class="lr-sub">Envoie des crédits par code membre</span></span>
+      <span class="lr-chev">${I('chevR', 18)}</span>
+    </button>
     <button class="listrow" onclick="act.referralSheet()">
       <span class="lr-ico">${I('gift', 22)}</span>
       <span class="lr-txt"><span class="lr-name">🤝 Parrainage</span><br><span class="lr-sub">Ton code : ${u.memberId} — 1 crédit offert chacun</span></span>
@@ -1522,6 +1537,14 @@ function vProfil() {
       <span class="lr-txt"><span class="lr-name">Objectif hebdo</span><br><span class="lr-sub">${plural(u.weeklyGoal || 3, 'séance')} par semaine</span></span>
       <span class="lr-chev">${I('chevR', 18)}</span>
     </button>
+    <div class="listrow" style="cursor:default">
+      <span class="lr-ico">${currentMode() === 'light' ? '🌞' : '🌙'}</span>
+      <span class="lr-txt"><span class="lr-name">Apparence</span></span>
+      <span class="modeseg">
+        <button class="${currentMode() === 'dark' ? 'on' : ''}" onclick="act.setMode('dark')">🌙 Sombre</button>
+        <button class="${currentMode() === 'light' ? 'on' : ''}" onclick="act.setMode('light')">🌞 Clair</button>
+      </span>
+    </div>
     <div class="listrow" style="cursor:default">
       <span class="lr-ico">${I('pencil', 22)}</span>
       <span class="lr-txt"><span class="lr-name">Couleur de l'app</span></span>
@@ -1543,6 +1566,11 @@ function vProfil() {
     <button class="listrow" onclick="act.changePassSheet()">
       <span class="lr-ico">${I('card', 22)}</span>
       <span class="lr-txt"><span class="lr-name">🔒 Changer mon mot de passe</span></span>
+      <span class="lr-chev">${I('chevR', 18)}</span>
+    </button>
+    <button class="listrow" onclick="act.exportMyData()">
+      <span class="lr-ico">${I('download', 22)}</span>
+      <span class="lr-txt"><span class="lr-name">📦 Exporter mes données</span><br><span class="lr-sub">Télécharge tout mon compte en .json</span></span>
       <span class="lr-chev">${I('chevR', 18)}</span>
     </button>
     <button class="listrow" onclick="act.askDeleteSelf()">
@@ -1821,6 +1849,7 @@ function vLogin() {
   return `
   <div class="loginwrap">
     <button class="loginback" onclick="nav('#/home')">${I('back', 22)}</button>
+    <button class="loginmode" onclick="act.toggleMode()" aria-label="Changer d'apparence">${currentMode() === 'light' ? '🌙' : '🌞'}</button>
     <div class="loginlogo">${LOGO(58)}</div>
     <h1>${esc(BRAND.name)}<i>.</i></h1>
     <div class="lw-tag">${BRAND.tagline}</div>
@@ -1888,6 +1917,67 @@ const act = {
   copyReferral() {
     try { navigator.clipboard.writeText(state.user.memberId); toast('Code copié ✓'); }
     catch { toast('Code : ' + state.user.memberId); }
+  },
+
+  /* offrir un crédit à un ami (transfert par code membre) */
+  giftFriendSheet() {
+    const bal = creditBalance();
+    if (bal !== Infinity && bal < 1) {
+      openSheet(`
+        <h2>🎁 Offrir un crédit</h2>
+        <div class="warn">Tu n'as aucun crédit à offrir pour l'instant. Recharge d'abord dans la boutique.</div>
+        <button class="cta-main" onclick="act.closeSheet();nav('#/studio/cartes')">VOIR LES PACKS</button>`);
+      return;
+    }
+    openSheet(`
+      <h2>🎁 Offrir un crédit à un ami</h2>
+      <div class="sh-sub">TON SOLDE : ${bal === Infinity ? 'ILLIMITÉ' : plural(bal, 'crédit')}</div>
+      <div class="sh-desc" style="margin-top:12px;">Entre le <b>code membre</b> de ton ami·e (il est dans son profil) et le nombre de crédits à lui envoyer.</div>
+      <div class="formfield"><label>CODE MEMBRE</label><input id="gf-code" placeholder="OX-1234" style="text-transform:uppercase"></div>
+      <div class="formfield"><label>CRÉDITS À OFFRIR</label><input id="gf-amount" type="number" value="1" min="1" max="10"></div>
+      <div class="formfield"><label>PETIT MOT (OPTIONNEL)</label><input id="gf-msg" placeholder="ex : à ta prochaine séance !"></div>
+      <div class="formerror" id="gfErr"></div>
+      <button class="cta-main" onclick="act.giftFriend()">ENVOYER</button>`);
+  },
+  giftFriend() {
+    const err = m => { const e = $('#gfErr'); if (e) e.textContent = m; };
+    const code = ($('#gf-code').value || '').trim().toUpperCase();
+    const amount = Math.min(10, Math.max(1, parseInt($('#gf-amount').value) || 1));
+    const msg = ($('#gf-msg').value || '').trim();
+    if (!code) { err('Entre le code de ton ami·e.'); return; }
+    if (code === state.user.memberId) { err('Tu ne peux pas t\'offrir des crédits à toi-même 😅'); return; }
+    const bal = creditBalance();
+    if (bal !== Infinity && bal < amount) { err(`Tu n'as que ${plural(bal, 'crédit')}.`); return; }
+    const friendEmail = Object.keys(ACCOUNTS).find(e => ACCOUNTS[e].memberId === code && ACCOUNTS[e].role !== 'admin');
+    if (!friendEmail) { err('Aucun membre avec ce code.'); return; }
+    if (!payCredits(amount)) { err('Solde insuffisant.'); return; }
+    const friend = ACCOUNTS[friendEmail];
+    friend.data.cards = friend.data.cards || [];
+    friend.data.cards.unshift({ id: uid(), label: `CADEAU DE ${state.user.name.toUpperCase()} 🎁`, total: amount, remaining: amount, expires: addMonths(new Date(), 3).toISOString() });
+    friend.data.notifs = friend.data.notifs || [];
+    friend.data.notifs.unshift({ id: 'friendgift_' + uid(), read: false, ts: Date.now(), emoji: '🎁', title: `${state.user.name.split(' ')[0]} t'offre ${plural(amount, 'crédit')} !`, body: msg || 'Un petit cadeau entre ami·e·s — profites-en 🖤' });
+    persistAccounts();
+    save();
+    act.closeSheet();
+    toast(`${plural(amount, 'crédit')} offert${amount > 1 ? 's' : ''} à ${friend.name} 🎁`);
+    confetti();
+    render();
+  },
+
+  /* export RGPD : mes données perso */
+  exportMyData() {
+    const email = state.user.email.toLowerCase();
+    const acc = ACCOUNTS[email];
+    const payload = {
+      app: 'onyx-studio', exported: new Date().toISOString(),
+      profil: { name: acc.name, email: acc.email, phone: acc.phone, address: acc.address, memberId: acc.memberId, since: acc.since },
+      donnees: acc.data,
+    };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+    a.download = `mes-donnees-${BRAND.name}.json`;
+    a.click();
+    toast('📦 Données exportées');
   },
   resaTab(t) { state.resaTab = t; save(); render(); },
   invTab(t) { state.invTab = t; save(); render(); },
@@ -2066,7 +2156,7 @@ const act = {
       const si = spotInfo(s);
       const occ = occupiedSpots(s);
       cta = `
-        <div class="overline" style="margin-top:4px">Choisis ta place · ${si.label.toLowerCase()}s</div>
+        <div class="overline" style="margin-top:4px">Choisis ta place · ${si.label.toLowerCase()}${si.label.endsWith('s') ? '' : 's'}</div>
         <div class="spotmap" style="grid-template-columns:repeat(${si.cols},1fr)">
           ${Array.from({ length: si.cap }, (_, i) => i + 1).map(n => `
           <button class="spot ${occ.has(n) ? 'taken' : ''}" id="spot-${n}" ${occ.has(n) ? 'disabled' : ''} onclick="act.pickSpot(${n})">${n}</button>`).join('')}
@@ -2464,6 +2554,13 @@ const act = {
     save(); applyTheme(); render();
     toast(`Couleur « ${THEMES[t].name} » appliquée 🎨`);
   },
+  setMode(m) {
+    if (state.user) { state.user.mode = m; save(); }
+    localStorage.setItem('onyx_mode', m);
+    applyTheme(); render();
+    toast(m === 'light' ? 'Mode clair activé 🌞' : 'Mode sombre activé 🌙');
+  },
+  toggleMode() { act.setMode(currentMode() === 'light' ? 'dark' : 'light'); },
 
   editProfile() {
     const u = state.user;

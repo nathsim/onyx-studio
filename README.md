@@ -81,6 +81,8 @@ Tout est stocké dans `localStorage` (`onyx_config_v1`) et s'applique à tous le
   à venir (itinéraire, annulation, export `.ics`), historique avec **notes ★**, favoris
 - **Avis visibles** : les commentaires des membres apparaissent sur les fiches profs
 - **Robustesse** : textes saisis échappés partout (noms avec apostrophes, HTML…), scroll conservé, filtres réinitialisables
+- **Gestion de compte** : changer son mot de passe, supprimer son compte, Entrée pour valider, afficher/masquer le mot de passe
+- **Toujours à jour** : service worker network-first → chaque visiteur en ligne reçoit la dernière version (offline = cache)
 - **Boutique** : packs de crédits, abonnements mensuels (facturation simulée, résiliation),
   cartes-cadeaux (codes générés), shop produits, panier, paiement **fictif**
 - **Inventaire** : mes cartes (barres de progression), mes abonnements, mes factures téléchargeables
