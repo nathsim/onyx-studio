@@ -109,21 +109,27 @@ function loadConfig() {
   try {
     const c = JSON.parse(localStorage.getItem(C_KEY));
     if (!c) return;
+    // niveaux par défaut (data.js) pour rétro-compat des configs enregistrées avant les niveaux
+    const defLevels = Object.fromEntries(CLASS_TYPES.map(t => [t.id, t.level]));
     if (c.brand) Object.assign(BRAND, c.brand);
     if (c.teachers) TEACHERS = c.teachers;
-    if (c.classTypes) CLASS_TYPES = c.classTypes;
+    if (c.classTypes) {
+      CLASS_TYPES = c.classTypes;
+      CLASS_TYPES.forEach(t => { if (!t.level) t.level = defLevels[t.id] || 'modere'; });
+    }
     if (c.weekTemplate) WEEK_TEMPLATE = c.weekTemplate;
     if (c.packs) PACKS = c.packs;
     if (c.subs) SUBS = c.subs;
     if (c.products) PRODUCTS = c.products;
     if (c.annonces) ANNONCES = c.annonces;
+    if (c.hours) HOURS = c.hours;
   } catch { /* config invalide → défauts */ }
 }
 function persistConfig() {
   localStorage.setItem(C_KEY, JSON.stringify({
     brand: { name: BRAND.name, full: BRAND.full, tagline: BRAND.tagline, address: BRAND.address, phone: BRAND.phone, email: BRAND.email },
     teachers: TEACHERS, classTypes: CLASS_TYPES, weekTemplate: WEEK_TEMPLATE, packs: PACKS, subs: SUBS,
-    products: PRODUCTS, annonces: ANNONCES,
+    products: PRODUCTS, annonces: ANNONCES, hours: HOURS,
   }));
   rebuildSessions();
   document.title = BRAND.name + ' studio';
@@ -305,7 +311,7 @@ let Q = '';
 let AUTH_TAB = 'login';
 let ADMIN_DAY = 1;      // jour sélectionné dans l'éditeur de planning (1 = lundi)
 let PWA_PROMPT = null;  // événement beforeinstallprompt (installation PWA)
-const F = { lieu: null, prof: null, date: null };
+const F = { lieu: null, prof: null, date: null, level: null };
 
 /* ---------------- Crédits ---------------- */
 const activeCards = () => state.cards.filter(c => new Date(c.expires) > new Date() && (c.total === -1 || c.remaining > 0));
@@ -487,6 +493,23 @@ function occupiedSpots(sess) {
   return taken;
 }
 const firstFreeSpot = (occ, cap) => { for (let n = 1; n <= cap; n++) if (!occ.has(n)) return n; return null; };
+
+/* ---------------- Niveau de difficulté & horaires ---------------- */
+function levelTag(typeOrId, mini = false) {
+  const t = typeof typeOrId === 'string' ? CLASS_TYPES.find(x => x.id === typeOrId) : typeOrId;
+  const lv = t && t.level && LEVELS_DIFF[t.level];
+  if (!lv) return '';
+  return `<span class="lvltag ${t.level}">${lv.emoji}${mini ? '' : ' ' + lv.short}</span>`;
+}
+function studioOpenNow() {
+  const now = new Date();
+  const h = HOURS[now.getDay()];
+  if (!h || /ferm/i.test(h)) return false;
+  const m = h.match(/(\d{1,2}):(\d{2})\s*[–-]\s*(\d{1,2}):(\d{2})/);
+  if (!m) return false;
+  const cur = now.getHours() * 60 + now.getMinutes();
+  return cur >= (+m[1] * 60 + +m[2]) && cur <= (+m[3] * 60 + +m[4]);
+}
 
 /* ---------------- Inscriptions par séance (tous comptes) ---------------- */
 function bookingsFor(sessionId) {
@@ -712,6 +735,7 @@ function render() {
     case 'profil':       view.innerHTML = vProfil(); break;
     case 'notifs':       view.innerHTML = vNotifs(); break;
     case 'stats':        view.innerHTML = vStats(); break;
+    case 'apropos':      view.innerHTML = vStudioInfo(); break;
     case 'admin':
       if (sub === 'cours')         view.innerHTML = vAdminCours();
       else if (sub === 'planning') view.innerHTML = vAdminPlanning();
@@ -956,6 +980,60 @@ function vNotifs() {
   <div style="height:26px"></div>`;
 }
 
+/* ----- Le studio (infos pratiques) ----- */
+function vStudioInfo() {
+  const open = studioOpenNow();
+  const today = new Date().getDay();
+  const dayFull = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  return pagehead('À propos', 'Le studio') + `
+  <div class="pad20 mt14">
+    <div class="studiohero">
+      <div class="sh-logo">${LOGO(46)}</div>
+      <div class="sh-name">${esc(BRAND.full)}</div>
+      <div class="sh-tag">${esc(BRAND.tagline)}</div>
+      <div class="openbadge ${open ? 'open' : 'closed'}">${open ? '● Ouvert maintenant' : '● Fermé actuellement'}</div>
+    </div>
+    <div class="quickactions">
+      <button onclick="act.itinerary()">${I('pin', 20)}<span>Itinéraire</span></button>
+      <a href="tel:${BRAND.phone.replace(/\s/g, '')}" class="qa-a">${I('user', 20)}<span>Appeler</span></a>
+      <a href="mailto:${BRAND.email}" class="qa-a">${I('receipt', 20)}<span>Email</span></a>
+    </div>
+  </div>
+  <div class="sechead"><span class="overline">Horaires d'ouverture</span></div>
+  <div class="pad20">
+    <div class="hourscard">
+      ${order.map(d => `
+      <div class="hourrow ${d === today ? 'today' : ''}">
+        <span>${dayFull[d]}${d === today ? " · aujourd'hui" : ''}</span>
+        <b class="${/ferm/i.test(HOURS[d] || '') ? 'closed' : ''}">${esc(HOURS[d] || '—')}</b>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="sechead"><span class="overline">Adresse</span></div>
+  <div class="pad20">
+    <button class="listrow" onclick="act.itinerary()" style="width:100%">
+      <span class="lr-ico">${I('pin', 22)}</span>
+      <span class="lr-txt"><span class="lr-name">${esc(BRAND.address)}</span><br><span class="lr-sub">Ouvrir dans Google Maps</span></span>
+      <span class="lr-chev">${I('chevR', 18)}</span>
+    </button>
+  </div>
+  <div class="sechead"><span class="overline">Équipements & services</span></div>
+  <div class="amengrid">
+    ${AMENITIES.map(a => `<div class="amen"><span class="am-emoji">${a.emoji}</span><span>${esc(a.label)}</span></div>`).join('')}
+  </div>
+  <div class="sechead"><span class="overline">Questions fréquentes</span></div>
+  <div class="pad20 stack12">
+    ${FAQ.map(f => `
+    <details class="faq">
+      <summary>${esc(f.q)}<span class="faq-chev">${I('chevD', 18)}</span></summary>
+      <div class="faq-a">${esc(f.r)}</div>
+    </details>`).join('')}
+  </div>
+  <div class="smallnote">${esc(BRAND.full)} · ${esc(BRAND.phone)} · ${esc(BRAND.email)}<br>Version démo — infos fictives.</div>
+  <div style="height:26px"></div>`;
+}
+
 /* ----- Mes statistiques ----- */
 function vStats() {
   const past = pastSessionsDone();
@@ -1064,6 +1142,7 @@ function vPlanning() {
   let list = futureSessions().filter(s => dayKey(s.date) === F.date);
   if (F.lieu) list = list.filter(s => s.type.studio === F.lieu);
   if (F.prof) list = list.filter(s => s.teacher === F.prof);
+  if (F.level) list = list.filter(s => s.type.level === F.level);
 
   const strip = days.map(dk => {
     const d = new Date(dk + 'T12:00');
@@ -1080,7 +1159,7 @@ function vPlanning() {
       <div><div class="sc-time">${fmtTime(s.date)}</div><div class="sc-dur">${s.type.dur === 60 ? '1h' : s.type.dur + ' min'}</div></div>
       <div>
         <div class="sc-name">${esc(s.type.name)} ${s.type.emoji}</div>
-        <div class="sc-meta">${s.teacher} <span class="tag ${s.type.studio.toLowerCase()}">${s.type.studio}</span>${inWait ? ' <span class="tag wait">EN ATTENTE</span>' : ''}</div>
+        <div class="sc-meta">${esc(s.teacher)} <span class="tag ${s.type.studio.toLowerCase()}">${s.type.studio}</span> ${levelTag(s.type)}${inWait ? ' <span class="tag wait">EN ATTENTE</span>' : ''}</div>
       </div>
       ${seats.full ? `<span class="credchip full">COMPLET</span>` : `<span class="credchip">${plural(s.type.credits, 'crédit')}</span>`}
     </button>`;
@@ -1096,6 +1175,7 @@ function vPlanning() {
   <div class="filterrow">
     <button class="fchip ${F.lieu ? 'on' : ''}" onclick="act.pickFilter('lieu')">${I('pin', 16)} ${F.lieu ? STUDIOS[F.lieu].label : 'Tous les lieux'} ${I('chevD', 15)}</button>
     <button class="fchip ${F.prof ? 'on' : ''}" onclick="act.pickFilter('prof')">${I('user', 16)} ${F.prof || 'Prof'} ${I('chevD', 15)}</button>
+    <button class="fchip ${F.level ? 'on' : ''}" onclick="act.pickFilter('level')">${F.level ? LEVELS_DIFF[F.level].emoji + ' ' + LEVELS_DIFF[F.level].short : '⚡ Niveau'} ${I('chevD', 15)}</button>
   </div>
   <div class="sesslist">${rows}</div>
   <div style="height:26px"></div>`;
@@ -1283,6 +1363,14 @@ function vStudio() {
       <img src="${p.img}" alt="" loading="lazy" onerror="this.style.display='none'">
       <div class="pt-body"><div class="pt-name">${esc(p.name)}</div><div class="pt-price">${eur(p.price)} €</div></div>
     </button>`).join('')}
+  </div>
+  <div class="sechead"><span class="overline">Infos</span></div>
+  <div class="listrows">
+    <button class="listrow" onclick="nav('#/apropos')">
+      <span class="lr-ico">${I('pin', 22)}</span>
+      <span class="lr-txt"><span class="lr-name">📍 Le studio</span><br><span class="lr-sub">Horaires, adresse, équipements, FAQ</span></span>
+      <span class="lr-chev">${I('chevR', 18)}</span>
+    </button>
   </div>
   <div class="smallnote">Version démo locale — paiements simulés, aucune vraie transaction.</div>
   <div style="height:20px"></div>`;
@@ -1514,6 +1602,11 @@ function vProfil() {
       <span class="lr-txt"><span class="lr-name">📈 Mes statistiques</span><br><span class="lr-sub">Niveau, série, semaines, tops</span></span>
       <span class="lr-chev">${I('chevR', 18)}</span>
     </button>
+    <button class="listrow" onclick="nav('#/apropos')">
+      <span class="lr-ico">${I('pin', 22)}</span>
+      <span class="lr-txt"><span class="lr-name">📍 Le studio</span><br><span class="lr-sub">Horaires, adresse, équipements, FAQ</span></span>
+      <span class="lr-chev">${I('chevR', 18)}</span>
+    </button>
     <button class="listrow" onclick="act.toggleSysNotifs()">
       <span class="lr-ico">${I('bell', 22)}</span>
       <span class="lr-txt"><span class="lr-name">🔔 Rappels système</span><br><span class="lr-sub">${!('Notification' in window) ? 'Non supporté ici'
@@ -1666,6 +1759,11 @@ function vAdminDash() {
       <span class="lr-txt"><span class="lr-name">Marque & infos</span><br><span class="lr-sub">${esc(BRAND.name)} · ${esc(BRAND.address)}</span></span>
       <span class="lr-chev">${I('chevR', 18)}</span>
     </button>
+    <button class="listrow" onclick="act.adminHoursSheet()">
+      <span class="lr-ico">${I('clock', 22)}</span>
+      <span class="lr-txt"><span class="lr-name">Horaires d'ouverture</span><br><span class="lr-sub">Modifier les horaires du studio</span></span>
+      <span class="lr-chev">${I('chevR', 18)}</span>
+    </button>
     <button class="listrow" onclick="act.adminBackup()">
       <span class="lr-ico">${I('download', 22)}</span>
       <span class="lr-txt"><span class="lr-name">💾 Sauvegarde complète</span><br><span class="lr-sub">Exporte comptes + config en fichier .json</span></span>
@@ -1690,7 +1788,7 @@ function vAdminCours() {
       <span style="font-size:22px">${t.emoji}</span>
       <div class="iv-txt">
         <div class="iv-num">${esc(t.name)}</div>
-        <div class="iv-sub">${STUDIOS[t.studio].label} · ${t.dur} min · ${plural(t.credits, 'crédit')}</div>
+        <div class="iv-sub">${STUDIOS[t.studio].label} · ${t.dur} min · ${plural(t.credits, 'crédit')} ${levelTag(t)}</div>
       </div>
       <button class="iconbtn" onclick="act.adminCourseSheet('${t.id}')">${I('pencil', 18)}</button>
       <button class="iconbtn" style="color:var(--danger)" onclick="act.adminAskDelCourse('${t.id}')">${I('xcircle', 18)}</button>
@@ -2106,11 +2204,12 @@ const act = {
   },
 
   pickFilter(kind) {
-    let opts;
-    if (kind === 'lieu') opts = [{ v: null, l: 'Tous les lieux' }, ...Object.values(STUDIOS).map(s => ({ v: s.id, l: s.label }))];
-    else opts = [{ v: null, l: 'Tous les professeurs' }, ...TEACHERS.map(t => ({ v: t, l: t }))];
+    let opts, title;
+    if (kind === 'lieu') { title = 'Choisir un lieu'; opts = [{ v: null, l: 'Tous les lieux' }, ...Object.values(STUDIOS).map(s => ({ v: s.id, l: s.label }))]; }
+    else if (kind === 'level') { title = 'Choisir un niveau'; opts = [{ v: null, l: 'Tous les niveaux' }, ...Object.entries(LEVELS_DIFF).map(([k, lv]) => ({ v: k, l: lv.emoji + ' ' + lv.name }))]; }
+    else { title = 'Choisir un prof'; opts = [{ v: null, l: 'Tous les professeurs' }, ...TEACHERS.map(t => ({ v: t, l: t }))]; }
     openSheet(`
-      <h2>${kind === 'lieu' ? 'Choisir un lieu' : 'Choisir un prof'}</h2>
+      <h2>${title}</h2>
       <div style="margin-top:10px;">
       ${opts.map(o => `<button class="optrow ${F[kind] === o.v ? 'on' : ''}" onclick="act.setFilter('${kind}',${o.v === null ? 'null' : `'${o.v}'`})">
         <span>${o.l}</span>${F[kind] === o.v ? I('check', 20) : ''}</button>`).join('')}
@@ -2183,12 +2282,32 @@ const act = {
       <div class="sh-rows">
         <div class="sh-row">${I('calendar', 19)} ${fmtPill(s.date)}</div>
         <button class="sh-row shlink" onclick="act.openTeacher('${arg(s.teacher)}')">${I('user', 19)} ${esc(s.teacher)} <span class="shlink-more">voir le profil →</span></button>
-        <div class="sh-row">${I('pin', 19)} ${BRAND.address}</div>
-        <div class="sh-row">${I('figure', 19)} Tous niveaux</div>
+        <div class="sh-row">${I('pin', 19)} ${esc(BRAND.address)}</div>
+        <div class="sh-row">${I('figure', 19)} Niveau : ${s.type.level && LEVELS_DIFF[s.type.level] ? LEVELS_DIFF[s.type.level].emoji + ' ' + LEVELS_DIFF[s.type.level].name : 'Tous niveaux'}</div>
       </div>
       <div class="sh-desc">${s.type.desc}</div>
       ${cta}
+      ${booked && !isPast ? `<button class="cta-ghost" onclick="act.addToCalendar('${id}')">${I('calendar', 17)} AJOUTER À MON AGENDA</button>` : ''}
       ${!isPast ? `<button class="cta-ghost" onclick="act.shareSession('${id}')">📤 INVITER UN AMI</button>` : ''}`);
+  },
+
+  addToCalendar(id) {
+    const s = SESSION_BY_ID[id];
+    if (!s) return;
+    const dt = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const icsEsc = t => String(t).replace(/\\/g, '\\\\').replace(/[,;]/g, m => '\\' + m);
+    const end = new Date(s.date.getTime() + s.type.dur * 60000);
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//onyx studio//FR', 'BEGIN:VEVENT',
+      `UID:${s.id}@onyx`, `DTSTART:${dt(s.date)}`, `DTEND:${dt(end)}`,
+      `SUMMARY:${icsEsc(s.type.name + ' — ' + BRAND.full)}`,
+      `DESCRIPTION:${icsEsc('Avec ' + s.teacher + '. Pense à arriver 10 min avant !')}`,
+      `LOCATION:${icsEsc(BRAND.address)}`, 'BEGIN:VALARM', 'TRIGGER:-PT2H', 'ACTION:DISPLAY',
+      `DESCRIPTION:${icsEsc('Séance ' + s.type.name + ' dans 2h')}`, 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'];
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([ics.join('\r\n')], { type: 'text/calendar' }));
+    a.download = `${s.type.id}-${dayKey(s.date)}.ics`;
+    a.click();
+    toast('📅 Séance ajoutée à ton agenda');
   },
 
   shareSession(id) {
@@ -2722,6 +2841,10 @@ const act = {
           <option value="MAT" ${t && t.studio === 'MAT' ? 'selected' : ''}>STUDIO MAT (1 crédit conseillé)</option>
           <option value="REFORMER" ${t && t.studio === 'REFORMER' ? 'selected' : ''}>STUDIO REFORMER (2 crédits conseillés)</option>
         </select></div>
+      <div class="formfield"><label>NIVEAU</label>
+        <select id="ac-level">
+          ${Object.entries(LEVELS_DIFF).map(([k, lv]) => `<option value="${k}" ${(t ? t.level : 'modere') === k ? 'selected' : ''}>${lv.emoji} ${lv.name}</option>`).join('')}
+        </select></div>
       ${f('ac-dur', 'DURÉE (MINUTES)', t ? t.dur : 60, 'number')}
       ${f('ac-credits', 'PRIX EN CRÉDITS', t ? t.credits : 1, 'number')}
       ${f('ac-desc', 'DESCRIPTION', t ? t.desc : '')}
@@ -2735,6 +2858,7 @@ const act = {
       name,
       emoji: $('#ac-emoji').value.trim() || '💪',
       studio: $('#ac-studio').value,
+      level: $('#ac-level').value,
       dur: Math.max(15, parseInt($('#ac-dur').value) || 60),
       credits: Math.min(5, Math.max(1, parseInt($('#ac-credits').value) || 1)),
       desc: $('#ac-desc').value.trim(),
@@ -2891,6 +3015,22 @@ const act = {
     BRAND.tagline = $('#ab-tag').value.trim() || BRAND.tagline;
     BRAND.address = $('#ab-address').value.trim() || BRAND.address;
     persistConfig(); act.closeSheet(); toast(`Le studio s'appelle « ${n} » ✨`); render();
+  },
+
+  adminHoursSheet() {
+    const days = [{ d: 1, l: 'Lundi' }, { d: 2, l: 'Mardi' }, { d: 3, l: 'Mercredi' }, { d: 4, l: 'Jeudi' }, { d: 5, l: 'Vendredi' }, { d: 6, l: 'Samedi' }, { d: 0, l: 'Dimanche' }];
+    openSheet(`
+      <h2>${I('clock', 20)} Horaires d'ouverture</h2>
+      <div class="sh-desc" style="margin-top:6px;">Écris « Fermé » pour un jour de repos, ou un créneau ex : <b>07:00 – 21:00</b>.</div>
+      ${days.map(x => `<div class="formfield"><label>${x.l.toUpperCase()}</label><input id="ah-${x.d}" value="${esc(HOURS[x.d] || '')}"></div>`).join('')}
+      <button class="cta-main" onclick="act.adminSaveHours()">ENREGISTRER</button>`);
+  },
+  adminSaveHours() {
+    for (const d of [0, 1, 2, 3, 4, 5, 6]) {
+      const el = $('#ah-' + d);
+      if (el) HOURS[d] = el.value.trim() || 'Fermé';
+    }
+    persistConfig(); act.closeSheet(); toast('Horaires mis à jour ✓'); render();
   },
 
   /* membres */

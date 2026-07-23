@@ -29,36 +29,76 @@ const TEACHER_INFO = {
 
 // Types de cours (le prix est en crédits)
 let CLASS_TYPES = [
-  { id: 'reformer-flow',       name: 'REFORMER FLOW',       emoji: '⚡', studio: 'REFORMER', dur: 50, credits: 2,
+  { id: 'reformer-flow',       name: 'REFORMER FLOW',       emoji: '⚡', studio: 'REFORMER', dur: 50, credits: 2, level: 'modere',
     img: 'https://images.pexels.com/photos/6111616/pexels-photo-6111616.jpeg?auto=compress&cs=tinysrgb&w=900',
     desc: 'Un enchaînement fluide et dynamique sur Reformer pour renforcer tout le corps en profondeur.' },
-  { id: 'reformer-deep-core',  name: 'REFORMER DEEP CORE',  emoji: '🍫', studio: 'REFORMER', dur: 50, credits: 2,
+  { id: 'reformer-deep-core',  name: 'REFORMER DEEP CORE',  emoji: '🍫', studio: 'REFORMER', dur: 50, credits: 2, level: 'intense',
     img: 'https://images.pexels.com/photos/6111690/pexels-photo-6111690.jpeg?auto=compress&cs=tinysrgb&w=900',
     desc: 'Le cours signature abdos : un travail intense et précis du centre, sur Reformer.' },
-  { id: 'reformer-essentials', name: 'REFORMER ESSENTIALS', emoji: '✨', studio: 'REFORMER', dur: 50, credits: 2,
+  { id: 'reformer-essentials', name: 'REFORMER ESSENTIALS', emoji: '✨', studio: 'REFORMER', dur: 50, credits: 2, level: 'doux',
     img: 'https://images.pexels.com/photos/6453396/pexels-photo-6453396.jpeg?auto=compress&cs=tinysrgb&w=900',
     desc: 'Les fondamentaux du Reformer, idéal pour débuter en toute confiance.' },
-  { id: 'power-pilates',       name: 'POWER PILATES',       emoji: '🌶️', studio: 'MAT', dur: 60, credits: 1,
+  { id: 'power-pilates',       name: 'POWER PILATES',       emoji: '🌶️', studio: 'MAT', dur: 60, credits: 1, level: 'intense',
     img: 'https://images.pexels.com/photos/3822906/pexels-photo-3822906.jpeg?auto=compress&cs=tinysrgb&w=900',
     desc: 'Un Pilates tapis rythmé qui monte en température. Ça pique (un peu).' },
-  { id: 'vinyasa-flow',        name: 'VINYASA FLOW',        emoji: '🌈', studio: 'MAT', dur: 60, credits: 1,
+  { id: 'vinyasa-flow',        name: 'VINYASA FLOW',        emoji: '🌈', studio: 'MAT', dur: 60, credits: 1, level: 'modere',
     img: 'https://images.pexels.com/photos/3823086/pexels-photo-3823086.jpeg?auto=compress&cs=tinysrgb&w=900',
     desc: 'Un yoga dynamique où le souffle guide le mouvement. Fluide, créatif, libérateur.' },
-  { id: 'yoga-ashtanga',       name: 'YOGA ASHTANGA',       emoji: '🤸', studio: 'MAT', dur: 60, credits: 1,
+  { id: 'yoga-ashtanga',       name: 'YOGA ASHTANGA',       emoji: '🤸', studio: 'MAT', dur: 60, credits: 1, level: 'intense',
     img: 'https://images.pexels.com/photos/4056723/pexels-photo-4056723.jpeg?auto=compress&cs=tinysrgb&w=900',
     desc: 'La série traditionnelle : exigeante, structurée, transformatrice.' },
-  { id: 'souplesse',           name: '100% SOUPLESSE',      emoji: '🧘', studio: 'MAT', dur: 60, credits: 1,
+  { id: 'souplesse',           name: '100% SOUPLESSE',      emoji: '🧘', studio: 'MAT', dur: 60, credits: 1, level: 'doux',
     img: 'https://images.pexels.com/photos/3823495/pexels-photo-3823495.jpeg?auto=compress&cs=tinysrgb&w=900',
     desc: 'Étirements profonds et mobilité : gagne en amplitude séance après séance.' },
-  { id: 'abs-butt',            name: 'ABS & BUTT',          emoji: '🍑', studio: 'MAT', dur: 60, credits: 1,
+  { id: 'abs-butt',            name: 'ABS & BUTT',          emoji: '🍑', studio: 'MAT', dur: 60, credits: 1, level: 'intense',
     img: 'https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg?auto=compress&cs=tinysrgb&w=900',
     desc: 'Le combo abdos-fessiers qui sculpte. Simple, efficace, redoutable.' },
-  { id: 'pilates-tradi',       name: 'PILATES TRADI',       emoji: '💙', studio: 'MAT', dur: 60, credits: 1,
+  { id: 'pilates-tradi',       name: 'PILATES TRADI',       emoji: '💙', studio: 'MAT', dur: 60, credits: 1, level: 'modere',
     img: 'https://images.pexels.com/photos/917653/pexels-photo-917653.jpeg?auto=compress&cs=tinysrgb&w=900',
     desc: 'La méthode originale de Joseph Pilates, dans les règles de l\'art.' },
-  { id: 'yin-yoga',            name: 'YIN YOGA',            emoji: '🌙', studio: 'MAT', dur: 60, credits: 1,
+  { id: 'yin-yoga',            name: 'YIN YOGA',            emoji: '🌙', studio: 'MAT', dur: 60, credits: 1, level: 'doux',
     img: 'https://images.pexels.com/photos/4327024/pexels-photo-4327024.jpeg?auto=compress&cs=tinysrgb&w=900',
     desc: 'Postures longues et douces pour relâcher les tensions. Le cours cocon.' },
+];
+
+// Niveaux de difficulté des cours
+const LEVELS_DIFF = {
+  doux:    { name: 'Doux',    emoji: '🟢', short: 'Doux' },
+  modere:  { name: 'Modéré',  emoji: '🟡', short: 'Modéré' },
+  intense: { name: 'Intense', emoji: '🔴', short: 'Intense' },
+};
+
+// Horaires d'ouverture (éditables par le gérant) — 0 = dimanche … 6 = samedi
+let HOURS = {
+  1: '07:00 – 21:00',
+  2: '07:00 – 21:00',
+  3: '07:00 – 21:00',
+  4: '07:00 – 21:00',
+  5: '07:00 – 20:00',
+  6: '08:30 – 13:00',
+  0: 'Fermé',
+};
+
+// Équipements & services du studio
+const AMENITIES = [
+  { emoji: '🚿', label: 'Douches chaudes' },
+  { emoji: '🔐', label: 'Vestiaires & casiers' },
+  { emoji: '🧘', label: 'Tapis & matériel fournis' },
+  { emoji: '🧦', label: 'Chaussettes en vente' },
+  { emoji: '📶', label: 'Wifi gratuit' },
+  { emoji: '🍵', label: 'Tisane offerte' },
+  { emoji: '♿', label: 'Accès PMR' },
+  { emoji: '🚲', label: 'Parking vélo' },
+];
+
+// Questions fréquentes
+const FAQ = [
+  { q: 'Je débute, quel cours choisir ?', r: 'Commence par un cours noté « 🟢 Doux » comme Reformer Essentials, 100% Souplesse ou Yin Yoga. Tu peux filtrer le planning par niveau.' },
+  { q: 'Que dois-je apporter ?', r: 'Une tenue confortable et une bouteille d\'eau. Le tapis et le matériel sont fournis. Pour le Reformer, des chaussettes antidérapantes sont obligatoires (en vente au studio).' },
+  { q: 'Comment fonctionnent les crédits ?', r: 'Chaque cours coûte des crédits (1 pour un cours sur tapis, 2 pour un Reformer). Achète des packs ou un abonnement dans la boutique, puis réserve.' },
+  { q: 'Puis-je annuler une réservation ?', r: 'Oui, gratuitement jusqu\'à 2h avant le début du cours : tes crédits te sont rendus automatiquement.' },
+  { q: 'Le cours est complet, que faire ?', r: 'Rejoins la liste d\'attente depuis la fiche du cours : tu seras prévenu·e si une place se libère.' },
+  { q: 'Puis-je venir avec un ami ?', r: 'Bien sûr ! Coche « Venir avec un invité » à la réservation (des crédits en plus), ou offre-lui des crédits depuis ton profil.' },
 ];
 
 // Planning hebdomadaire : 0 = dimanche … 6 = samedi
