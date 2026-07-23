@@ -83,6 +83,9 @@ Tout est stocké dans `localStorage` (`onyx_config_v1`) et s'applique à tous le
 - **Robustesse** : textes saisis échappés partout (noms avec apostrophes, HTML…), scroll conservé, filtres réinitialisables
 - **Gestion de compte** : changer son mot de passe, supprimer son compte, Entrée pour valider, afficher/masquer le mot de passe
 - **Toujours à jour** : service worker network-first → chaque visiteur en ligne reçoit la dernière version (offline = cache)
+- **Mode clair 🌞 / sombre 🌙** : bascule dans le profil (et sur l'écran de connexion), mémorisée par compte
+- **Offrir un crédit à un ami 🎁** : envoie des crédits à un autre membre par son code (il reçoit une notif)
+- **Exporter mes données 📦** : télécharge tout ton compte en `.json`
 - **Boutique** : packs de crédits, abonnements mensuels (facturation simulée, résiliation),
   cartes-cadeaux (codes générés), shop produits, panier, paiement **fictif**
 - **Inventaire** : mes cartes (barres de progression), mes abonnements, mes factures téléchargeables
