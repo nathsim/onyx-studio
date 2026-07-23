@@ -12,7 +12,9 @@ const THEMES = {
   mint:   { name: 'Menthe',  main: '#7FE0B2' },
   rose:   { name: 'Rose',    main: '#F49AC1' },
 };
-const themeMain = () => THEMES[(typeof state !== 'undefined' && state.user && state.user.theme) || 'gold'].main;
+// `state` est déclaré ici (assigné plus bas) pour éviter la zone morte temporelle (TDZ)
+let state = null;
+const themeMain = () => THEMES[(state && state.user && state.user.theme) || 'gold'].main;
 
 /* ---------------- Icônes SVG ---------------- */
 function I(name, size = 22, extra = '') {
@@ -139,7 +141,7 @@ function seatsInfo(sess) {
   const h = hash(sess.id);
   if (h % 13 === 0) {
     // une place s'est peut-être libérée pour toi (promotion liste d'attente)
-    const promoted = typeof state !== 'undefined' && state.waitPromos && state.waitPromos.includes(sess.id);
+    const promoted = state && state.waitPromos && state.waitPromos.includes(sess.id);
     return promoted ? { full: false, left: 1, promoted: true } : { full: true, left: 0 };
   }
   return { full: false, left: 2 + (h % 7) };
@@ -266,7 +268,7 @@ function hydrate(acc) {
 
 migrateLegacy();
 ensureDemoAccount();
-let state = (SESSION && ACCOUNTS[SESSION]) ? hydrate(ACCOUNTS[SESSION]) : defaultState();
+state = (SESSION && ACCOUNTS[SESSION]) ? hydrate(ACCOUNTS[SESSION]) : defaultState();
 
 function save() {
   if (state.user) {
