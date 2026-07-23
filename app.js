@@ -49,6 +49,8 @@ function I(name, size = 22, extra = '') {
     logout:   '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
     bell:     '<path d="M18 9a6 6 0 0 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 15 18 9z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/>',
     sync:     '<polyline points="22 3.5 22 9.5 16 9.5"/><polyline points="2 20.5 2 14.5 8 14.5"/><path d="M4.6 9A8 8 0 0 1 20 6.5l2 3M20 15a8 8 0 0 1-15.4 2.5l-2-3"/>',
+    eye:      '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+    eyeoff:   '<path d="M2 12s3.5-7 10-7c2 0 3.7.6 5.2 1.5M22 12s-3.5 7-10 7c-2 0-3.7-.6-5.2-1.5"/><path d="M9.5 9.5a3 3 0 0 0 4.2 4.2"/><line x1="3" y1="3" x2="21" y2="21"/>',
   };
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${extra}>${P[name] || ''}</svg>`;
 }
@@ -154,6 +156,15 @@ const DEMO_EMAIL = 'demo@onyx-studio.fr';
 
 // Hachage simple pour la démo (PAS une vraie sécurité — tout reste local)
 const passHash = (email, pass) => 'h' + hash(email.toLowerCase() + '|' + pass);
+
+// Réinitialisation globale des comptes : bump ce jeton pour vider TOUS les
+// comptes enregistrés (une seule fois par appareil) au prochain chargement.
+const RESET_TOKEN = 'reset-2026-07-24';
+if (localStorage.getItem('onyx_reset') !== RESET_TOKEN) {
+  localStorage.removeItem(A_KEY);
+  localStorage.removeItem(S_KEY);
+  localStorage.setItem('onyx_reset', RESET_TOKEN);
+}
 
 let ACCOUNTS = (() => {
   try { return JSON.parse(localStorage.getItem(A_KEY)) || {}; } catch { return {}; }
@@ -1527,6 +1538,18 @@ function vProfil() {
     ${field('ADRESSE', u.address)}
     ${field('CONTACT D’URGENCE', u.emergency)}
   </div>
+  <div class="sechead"><span class="overline">Mon compte</span></div>
+  <div class="listrows">
+    <button class="listrow" onclick="act.changePassSheet()">
+      <span class="lr-ico">${I('card', 22)}</span>
+      <span class="lr-txt"><span class="lr-name">🔒 Changer mon mot de passe</span></span>
+      <span class="lr-chev">${I('chevR', 18)}</span>
+    </button>
+    <button class="listrow" onclick="act.askDeleteSelf()">
+      <span class="lr-ico" style="color:var(--danger)">${I('xcircle', 22)}</span>
+      <span class="lr-txt"><span class="lr-name" style="color:var(--danger)">Supprimer mon compte</span><br><span class="lr-sub">Efface définitivement mes données</span></span>
+    </button>
+  </div>
   <div class="logoutwrap">
     <button class="cta-danger" onclick="act.askLogout()">${I('logout', 17)}&nbsp; SE DÉCONNECTER</button>
   </div>
@@ -1769,21 +1792,28 @@ function vAdminProfs() {
 
 /* ----- Login / Inscription ----- */
 function vLogin() {
+  const enterLogin = `onkeydown="if(event.key==='Enter')act.login()"`;
+  const enterSignup = `onkeydown="if(event.key==='Enter')act.signup()"`;
+  const pw = (id, ph, enter, val = '') => `
+    <div class="pwwrap">
+      <input id="${id}" type="password" placeholder="${ph}" autocomplete="off" value="${esc(val)}" ${enter}>
+      <button type="button" class="pweye" onclick="act.togglePw('${id}',this)" aria-label="Afficher le mot de passe">${I('eye', 20)}</button>
+    </div>`;
   const loginForm = `
     <div class="loginform">
-      <input id="li-email" type="email" placeholder="Email" value="${DEMO_EMAIL}">
-      <input id="li-pass" type="password" placeholder="Mot de passe" value="demo1234">
+      <input id="li-email" type="email" placeholder="Email" autocomplete="username" value="${DEMO_EMAIL}" ${enterLogin}>
+      ${pw('li-pass', 'Mot de passe', enterLogin, 'demo1234')}
       <div class="formerror" id="authError"></div>
       <button class="cta-main" style="margin-top:2px" onclick="act.login()">SE CONNECTER</button>
     </div>
     <div class="logindemo">Compte démo : ${DEMO_EMAIL} · demo1234<br>Tout reste sur ton PC — aucune donnée envoyée.</div>`;
   const signupForm = `
     <div class="loginform">
-      <input id="su-name" placeholder="Prénom (ou pseudo)">
-      <input id="su-email" type="email" placeholder="Email">
-      <input id="su-pass" type="password" placeholder="Mot de passe (6 caractères min.)">
-      <input id="su-pass2" type="password" placeholder="Confirme le mot de passe">
-      <input id="su-ref" placeholder="Code de parrainage (optionnel)" style="text-transform:uppercase">
+      <input id="su-name" placeholder="Prénom (ou pseudo)" autocomplete="off" ${enterSignup}>
+      <input id="su-email" type="email" placeholder="Email" autocomplete="off" ${enterSignup}>
+      ${pw('su-pass', 'Mot de passe (6 caractères min.)', enterSignup)}
+      ${pw('su-pass2', 'Confirme le mot de passe', enterSignup)}
+      <input id="su-ref" placeholder="Code de parrainage (optionnel)" style="text-transform:uppercase" ${enterSignup}>
       <div class="formerror" id="authError"></div>
       <button class="cta-main" style="margin-top:2px" onclick="act.signup()">CRÉER MON COMPTE</button>
     </div>
@@ -1963,6 +1993,13 @@ const act = {
   },
   gotoAuth(t) { AUTH_TAB = t; if (route()[0] === 'login') render(); else nav('#/login'); },
   authTab(t) { AUTH_TAB = t; render(); },
+  togglePw(id, btn) {
+    const el = $('#' + id); if (!el) return;
+    const show = el.type === 'password';
+    el.type = show ? 'text' : 'password';
+    btn.innerHTML = I(show ? 'eyeoff' : 'eye', 20);
+    btn.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+  },
 
   toggleFav(typeId) {
     if (!state.user) { act.gotoAuth('login'); return; }
@@ -2465,6 +2502,48 @@ const act = {
     act.closeSheet();
     nav('#/home'); render();
     toast('À bientôt 👋');
+  },
+
+  /* gestion du compte */
+  changePassSheet() {
+    openSheet(`
+      <h2>🔒 Changer mon mot de passe</h2>
+      <div class="formfield"><label>MOT DE PASSE ACTUEL</label><input id="cp-old" type="password" autocomplete="current-password"></div>
+      <div class="formfield"><label>NOUVEAU MOT DE PASSE</label><input id="cp-new" type="password" autocomplete="new-password"></div>
+      <div class="formfield"><label>CONFIRME LE NOUVEAU</label><input id="cp-new2" type="password" autocomplete="new-password"></div>
+      <div class="formerror" id="cpErr"></div>
+      <button class="cta-main" onclick="act.changePass()">ENREGISTRER</button>`);
+  },
+  changePass() {
+    const email = state.user.email.toLowerCase();
+    const acc = ACCOUNTS[email];
+    const old = $('#cp-old').value || '', nw = $('#cp-new').value || '', nw2 = $('#cp-new2').value || '';
+    const err = m => { const e = $('#cpErr'); if (e) e.textContent = m; };
+    if (acc.passHash !== passHash(email, old)) { err('Mot de passe actuel incorrect.'); return; }
+    if (nw.length < 6) { err('Nouveau mot de passe : 6 caractères minimum.'); return; }
+    if (nw !== nw2) { err('Les deux mots de passe ne correspondent pas.'); return; }
+    if (nw === old) { err('Choisis un mot de passe différent de l\'actuel.'); return; }
+    acc.passHash = passHash(email, nw);
+    persistAccounts();
+    act.closeSheet();
+    toast('Mot de passe modifié ✓');
+  },
+  askDeleteSelf() {
+    openSheet(`
+      <h2>Supprimer mon compte ?</h2>
+      <div class="warn">Cette action est <b>définitive</b> : tes crédits, réservations, factures et favoris seront effacés de cet appareil. Impossible de revenir en arrière.</div>
+      <button class="cta-danger" onclick="act.deleteSelf()">OUI, SUPPRIMER MON COMPTE</button>
+      <button class="cta-ghost" onclick="act.closeSheet()">ANNULER</button>`);
+  },
+  deleteSelf() {
+    const email = state.user.email.toLowerCase();
+    delete ACCOUNTS[email];
+    SESSION = null;
+    persistAccounts();
+    state = defaultState();
+    act.closeSheet();
+    nav('#/home'); render();
+    toast('Compte supprimé — à bientôt peut-être 🖤');
   },
 
   /* auth */
