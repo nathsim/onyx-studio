@@ -89,6 +89,9 @@ Tout est stocké dans `localStorage` (`onyx_config_v1`) et s'applique à tous le
 - **Page « Le studio » 📍** : horaires d'ouverture (éditables par le gérant), adresse + itinéraire, appeler/email, équipements & services, FAQ, statut ouvert/fermé en temps réel
 - **Niveaux de difficulté** : chaque cours est 🟢 Doux / 🟡 Modéré / 🔴 Intense — badges partout + filtre dans le planning + éditable par le gérant
 - **Ajouter une séance à mon agenda 📅** : bouton `.ics` (avec rappel 2h avant) sur chaque cours réservé
+- **Heatmap de constance 🔥** : calendrier d'assiduité des 12 dernières semaines (style GitHub) dans les stats
+- **Filtres rapides planning** : « ✅ Dispo » (masque les complets) et « 🖤 Favoris » + **places restantes** affichées sur chaque cours
+- **Réserver à nouveau 🔁** : rebooke ton cours habituel en un tap depuis l'historique (même cours, même prof si possible)
 - **Boutique** : packs de crédits, abonnements mensuels (facturation simulée, résiliation),
   cartes-cadeaux (codes générés), shop produits, panier, paiement **fictif**
 - **Inventaire** : mes cartes (barres de progression), mes abonnements, mes factures téléchargeables
