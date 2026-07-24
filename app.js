@@ -311,7 +311,7 @@ let Q = '';
 let AUTH_TAB = 'login';
 let ADMIN_DAY = 1;      // jour sélectionné dans l'éditeur de planning (1 = lundi)
 let PWA_PROMPT = null;  // événement beforeinstallprompt (installation PWA)
-const F = { lieu: null, prof: null, date: null, level: null };
+const F = { lieu: null, prof: null, date: null, level: null, onlyAvail: false, onlyFav: false };
 
 /* ---------------- Crédits ---------------- */
 const activeCards = () => state.cards.filter(c => new Date(c.expires) > new Date() && (c.total === -1 || c.remaining > 0));
@@ -1034,6 +1034,38 @@ function vStudioInfo() {
   <div style="height:26px"></div>`;
 }
 
+/* ----- Heatmap de constance (12 semaines) ----- */
+function attendanceHeatmap(past) {
+  const WEEKS = 12;
+  const perDay = {};
+  for (const s of past) { const k = dayKey(s.date); perDay[k] = (perDay[k] || 0) + 1; }
+  // lundi de la semaine courante
+  const mon = new Date(); mon.setHours(0, 0, 0, 0); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+  const start = new Date(mon); start.setDate(start.getDate() - (WEEKS - 1) * 7);
+  const todayK = dayKey(new Date());
+  const rows = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+  let cols = '';
+  for (let w = 0; w < WEEKS; w++) {
+    let cells = '';
+    for (let d = 0; d < 7; d++) {
+      const cur = new Date(start); cur.setDate(cur.getDate() + w * 7 + d);
+      const k = dayKey(cur);
+      const future = cur > new Date();
+      const n = perDay[k] || 0;
+      const lvl = future ? 'fut' : n === 0 ? '0' : n === 1 ? '1' : n === 2 ? '2' : '3';
+      cells += `<span class="hm-cell l${lvl} ${k === todayK ? 'today' : ''}" title="${cur.getDate()}/${cur.getMonth() + 1} · ${plural(n, 'séance')}"></span>`;
+    }
+    cols += `<div class="hm-col">${cells}</div>`;
+  }
+  const labels = rows.map(r => `<span class="hm-row-lbl">${r}</span>`).join('');
+  return `
+  <div class="heatwrap">
+    <div class="hm-rows">${labels}</div>
+    <div class="hm-grid">${cols}</div>
+  </div>
+  <div class="hm-legend">Moins <span class="hm-cell l0"></span><span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span> Plus</div>`;
+}
+
 /* ----- Mes statistiques ----- */
 function vStats() {
   const past = pastSessionsDone();
@@ -1117,6 +1149,8 @@ function vStats() {
       <div class="barlbl">${i === 7 ? 'now' : 'S-' + (7 - i)}</div>
     </div>`).join('')}
   </div>
+  <div class="sechead"><span class="overline">Ma constance · 12 semaines 🔥</span></div>
+  <div class="pad20">${attendanceHeatmap(past)}</div>
   ${past.length ? `
   <div class="sechead"><span class="overline">Tes tops</span></div>
   <div class="listrows">
@@ -1143,6 +1177,8 @@ function vPlanning() {
   if (F.lieu) list = list.filter(s => s.type.studio === F.lieu);
   if (F.prof) list = list.filter(s => s.teacher === F.prof);
   if (F.level) list = list.filter(s => s.type.level === F.level);
+  if (F.onlyAvail) list = list.filter(s => !seatsInfo(s).full);
+  if (F.onlyFav) list = list.filter(s => state.favorites.includes(s.type.id));
 
   const strip = days.map(dk => {
     const d = new Date(dk + 'T12:00');
@@ -1160,11 +1196,12 @@ function vPlanning() {
       <div>
         <div class="sc-name">${esc(s.type.name)} ${s.type.emoji}</div>
         <div class="sc-meta">${esc(s.teacher)} <span class="tag ${s.type.studio.toLowerCase()}">${s.type.studio}</span> ${levelTag(s.type)}${inWait ? ' <span class="tag wait">EN ATTENTE</span>' : ''}</div>
+        <div class="sc-seats">${seats.full ? '<span class="full">Complet — liste d\'attente</span>' : (seats.left <= 3 ? '<span class="low">' : '<span>') + '🔥 ' + plural(seats.left, 'place') + ' restante' + (seats.left > 1 ? 's' : '') + '</span>'}</div>
       </div>
       ${seats.full ? `<span class="credchip full">COMPLET</span>` : `<span class="credchip">${plural(s.type.credits, 'crédit')}</span>`}
     </button>`;
   }).join('') : `<div class="emptystate"><div class="es-emoji">📅</div>Aucun cours ce jour-là avec ces filtres.
-    ${(F.lieu || F.prof) ? `<br><button class="ghostbtn" style="margin-top:14px" onclick="act.resetFilters()">RÉINITIALISER LES FILTRES</button>` : ''}</div>`;
+    ${(F.lieu || F.prof || F.level || F.onlyAvail || F.onlyFav) ? `<br><button class="ghostbtn" style="margin-top:14px" onclick="act.resetFilters()">RÉINITIALISER LES FILTRES</button>` : ''}</div>`;
 
   return `
   <div class="pagehead">
@@ -1176,6 +1213,8 @@ function vPlanning() {
     <button class="fchip ${F.lieu ? 'on' : ''}" onclick="act.pickFilter('lieu')">${I('pin', 16)} ${F.lieu ? STUDIOS[F.lieu].label : 'Tous les lieux'} ${I('chevD', 15)}</button>
     <button class="fchip ${F.prof ? 'on' : ''}" onclick="act.pickFilter('prof')">${I('user', 16)} ${F.prof || 'Prof'} ${I('chevD', 15)}</button>
     <button class="fchip ${F.level ? 'on' : ''}" onclick="act.pickFilter('level')">${F.level ? LEVELS_DIFF[F.level].emoji + ' ' + LEVELS_DIFF[F.level].short : '⚡ Niveau'} ${I('chevD', 15)}</button>
+    <button class="fchip ${F.onlyAvail ? 'on' : ''}" onclick="act.toggleFilter('onlyAvail')">✅ Dispo</button>
+    <button class="fchip ${F.onlyFav ? 'on' : ''}" onclick="act.toggleFilter('onlyFav')">🖤 Favoris</button>
   </div>
   <div class="sesslist">${rows}</div>
   <div style="height:26px"></div>`;
@@ -1241,7 +1280,8 @@ function resCardHtml(sess, { past = false, resaId = null, guests = 0, rating = 0
     ${past ? `
     <div class="rs-actions">
       ${rating ? `<div class="stars">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}</div>`
-                : `<button onclick="act.rateSheet('${sess.id}')">☆ Noter cette séance</button>`}
+                : `<button onclick="act.rateSheet('${sess.id}')">☆ Noter</button>`}
+      <button class="gold" onclick="act.rebook('${sess.type.id}','${arg(sess.teacher)}')">🔁 Réserver à nouveau</button>
     </div>` : ''}
   </div>`;
 }
@@ -2090,7 +2130,7 @@ const act = {
     if (futureSessions().some(s => dayKey(s.date) === dk)) { F.date = dk; nav('#/planning'); return; }
     toast('Rien de prévu ce jour-là');
   },
-  resetFilters() { F.lieu = null; F.prof = null; render(); },
+  resetFilters() { F.lieu = null; F.prof = null; F.level = null; F.onlyAvail = false; F.onlyFav = false; render(); },
 
   /* ----- Coach : trouve ton cours en 2 questions ----- */
   coach(step, val) {
@@ -2216,6 +2256,16 @@ const act = {
       </div>`);
   },
   setFilter(kind, v) { F[kind] = v; act.closeSheet(); render(); },
+  toggleFilter(kind) { F[kind] = !F[kind]; render(); },
+  rebook(typeId, teacher) {
+    const booked = new Set(state.reservations.filter(r => r.status === 'active').map(r => r.sessionId));
+    const avail = futureSessions().filter(s => s.type.id === typeId && !seatsInfo(s).full && !booked.has(s.id));
+    const withTeacher = avail.filter(s => s.teacher === teacher);
+    const next = (withTeacher[0] || avail[0]);
+    if (next) { act.openSession(next.id); return; }
+    const type = CLASS_TYPES.find(t => t.id === typeId);
+    toast(`Aucune date dispo pour ${type ? type.name : 'ce cours'} 😕`);
+  },
 
   /* fiche cours + réservation */
   openSession(id) {

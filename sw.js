@@ -1,5 +1,5 @@
 // Service worker onyx studio — cache local pour le mode hors-ligne / app installée.
-const CACHE = 'onyx-v9';
+const CACHE = 'onyx-v10';
 const ASSETS = [
   './',
   './index.html',

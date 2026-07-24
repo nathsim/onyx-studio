@@ -1306,6 +1306,53 @@ img { display: block; max-width: 100%; }
 .barchart .barval { color: var(--gold); font-size: 12px; font-weight: 800; min-height: 15px; }
 .barchart .barlbl { color: var(--muted); font-size: 10.5px; font-weight: 700; }
 
+/* --------- heatmap de constance --------- */
+.heatwrap {
+  display: flex;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px 14px 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.heatwrap::-webkit-scrollbar { display: none; }
+.hm-rows { display: flex; flex-direction: column; gap: 4px; padding-top: 0; flex: 0 0 auto; }
+.hm-row-lbl { height: 15px; font-size: 9px; font-weight: 700; color: var(--muted); display: flex; align-items: center; }
+.hm-grid { display: flex; gap: 4px; flex: 1; }
+.hm-col { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 15px; }
+.hm-cell {
+  aspect-ratio: 1;
+  width: 100%;
+  min-width: 13px;
+  border-radius: 4px;
+  background: var(--card2);
+  display: inline-block;
+}
+.hm-cell.l0 { background: var(--card2); }
+.hm-cell.l1 { background: rgba(224,190,114,.35); }
+.hm-cell.l2 { background: rgba(224,190,114,.65); }
+.hm-cell.l3 { background: var(--gold); }
+.hm-cell.lfut { background: transparent; border: 1px dashed var(--line); }
+.hm-cell.today { outline: 1.5px solid var(--text); outline-offset: 1px; }
+.hm-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  justify-content: flex-end;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.hm-legend .hm-cell { width: 13px; height: 13px; aspect-ratio: auto; }
+
+/* --------- places restantes (planning) --------- */
+.sesscard .sc-seats { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 5px; }
+.sesscard .sc-seats .low { color: var(--gold); }
+.sesscard .sc-seats .full { color: var(--danger); }
+
 .splitbar { height: 12px; border-radius: 6px; background: var(--gold-dim); overflow: hidden; border: 1px solid var(--line); }
 .splitbar i { display: block; height: 100%; background: var(--ok); opacity: .75; }
 .splitlbl { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12.5px; font-weight: 700; color: var(--muted); }
